@@ -7,7 +7,7 @@ from vanilla import Window, Group, TextBox
 from Foundation import NSDate, NSMakeRect, NSTimer
 from AppKit import NSViewWidthSizable, NSViewMinXMargin, NSControl, NSBezierPath, NSColor
 
-PREF_KEY = "com.rsztype.RSZVersionBumper.enabled"
+PREF_KEY = "com.rsztype.Numeratore.enabled"
 
 
 # ----------------------------------------------------------------------
@@ -44,12 +44,12 @@ def _documentExported(info):
 			font.parent.saveDocument_(None)
 
 		Glyphs.showNotification(
-			"RSZ Version Bumper",
+			"Numeratore",
 			"Version \u2192 %d.%03d" % (font.versionMajor, font.versionMinor)
 		)
 	except Exception:
 		import traceback
-		print("RSZ Version Bumper error: %s" % traceback.format_exc())
+		print("Numeratore error: %s" % traceback.format_exc())
 
 
 def _ensure_engine():
@@ -122,11 +122,11 @@ class _RSZPillSwitch(NSControl):
 # ----------------------------------------------------------------------
 # Palette: the switch in the right-hand inspector column.
 # ----------------------------------------------------------------------
-class RSZVersionBumperPalette(PalettePlugin):
+class NumeratorePalette(PalettePlugin):
 
 	@objc.python_method
 	def settings(self):
-		self.name = "Version Bumper"
+		self.name = "Numeratore"
 
 		width = 160
 		height = 30
@@ -153,7 +153,7 @@ class RSZVersionBumperPalette(PalettePlugin):
 			self.switch = sw
 		except Exception:
 			import traceback
-			print("RSZ Version Bumper: could not create the switch control: %s" % traceback.format_exc())
+			print("Numeratore: could not create the switch control: %s" % traceback.format_exc())
 
 		self.dialog = groupView
 
