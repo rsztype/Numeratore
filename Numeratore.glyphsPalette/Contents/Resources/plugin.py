@@ -126,7 +126,7 @@ class NumeratorePalette(PalettePlugin):
 
 	@objc.python_method
 	def settings(self):
-		self.name = "Numeratore"
+		self.name = "🔢 Numeratore"
 
 		width = 160
 		height = 30
