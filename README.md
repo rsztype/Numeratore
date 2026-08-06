@@ -1,4 +1,4 @@
-# Numeratore.glyphsPalette
+# 🔢 Numeratore
 
 By Giuseppe Salerno ([Resistenza Type](https://rsztype.com)).
 
