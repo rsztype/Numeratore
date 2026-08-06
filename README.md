@@ -42,6 +42,6 @@ The plugin requires Glyphs 3 or Glyphs 4, running on macOS 10.15 or later. The b
 
 ### License
 
-Copyright 2026 Giuseppe Salerno / Resistenza Type (rsztype.com).
+Copyright 2026 Giuseppe Salerno / Resistenza Type ([rsztype.com](https://rsztype.com)).
 
 You may use, modify, and distribute this plugin freely. It is provided as-is, without warranty of any kind.
