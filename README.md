@@ -1,5 +1,7 @@
 # 🔢 Numeratore
 
+**Version 2.04** — for Glyphs 3 and 4, macOS 10.15 or later.
+
 By Giuseppe Salerno co-founder of [Resistenza Type](https://rsztype.com).
 
 This is a plugin for the [Glyphs font editor](https://glyphsapp.com/). It automatically increases the font version by `0.001` every time you export, so each exported file carries a unique, incrementing version number without any manual step.
