@@ -42,28 +42,62 @@ def _versionTag(font):
 	return "%d.%03d" % (font.versionMajor, font.versionMinor)
 
 
+# What the notification calls the thing we are after, when it hands over a
+# dictionary — which is what Glyphs does: fontFilePath for the file this
+# export wrote, fontFilePaths for every file of the batch.
+PATH_KEYS = ("fontFilePath", "fontFilePaths", "path", "filePath", "fileURL", "URL")
+
+
+def _expand(value, depth=0):
+	"""
+	A value and everything inside it, flattened.
+
+	The path arrives wrapped: a notification holding a dictionary holding a
+	list holding the string. Rather than know which wrapping this version of
+	Glyphs uses, every container is opened and everything that falls out is
+	offered to _asPath — the named keys first, since a dictionary that has one
+	is telling us where to look.
+	"""
+	if value is None or depth > 3:
+		return []
+	found = [value]
+	try:
+		keys = list(value.keys())
+	except Exception:
+		keys = None
+	if keys is not None:
+		for key in PATH_KEYS:
+			if key in keys:
+				found.extend(_expand(value[key], depth + 1))
+		for key in keys:
+			if key not in PATH_KEYS:
+				found.extend(_expand(value[key], depth + 1))
+		return found
+	if not isinstance(value, (str, bytes)):
+		try:
+			items = list(value)
+		except Exception:
+			items = None
+		if items is not None and items != [value]:
+			for item in items:
+				found.extend(_expand(item, depth + 1))
+	return found
+
+
 def _candidates(info):
 	"""Everything the callback might be carrying the path in."""
 	found = []
 	try:
-		found.append(info.object())
+		found.extend(_expand(info.object()))
 	except Exception:
 		pass
-	found.append(info)
-	for reader in ("userInfo", "path", "filePath", "fileURL", "URL"):
+	for reader in ("userInfo",):
 		try:
 			value = getattr(info, reader)
-			value = value() if callable(value) else value
-		except Exception:
-			continue
-		if value is None:
-			continue
-		try:
-			found.extend(list(value.values()))       # a dictionary of them
-			continue
+			found.extend(_expand(value() if callable(value) else value))
 		except Exception:
 			pass
-		found.append(value)
+	found.append(info)
 	return found
 
 
@@ -148,6 +182,11 @@ def _documentExported(info):
 				try:
 					print("Numeratore: %s → %s" % (os.path.basename(path),
 						os.path.basename(_renameWithVersion(path, _batchTag))))
+				except OSError as error:
+					print("Numeratore: could not rename %s — %s. Exporting into "
+						"a folder that needs an administrator, such as "
+						"/Library/Fonts, is the usual reason."
+						% (os.path.basename(path), error.strerror or error))
 				except Exception:
 					import traceback
 					print("Numeratore: could not rename %s\n%s"
