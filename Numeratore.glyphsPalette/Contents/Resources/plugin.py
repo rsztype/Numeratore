@@ -2,6 +2,7 @@
 from __future__ import division, print_function, unicode_literals
 import os
 import re
+from urllib.parse import unquote
 
 import objc
 from GlyphsApp import Glyphs, DOCUMENTEXPORTED
@@ -41,33 +42,70 @@ def _versionTag(font):
 	return "%d.%03d" % (font.versionMajor, font.versionMinor)
 
 
+def _candidates(info):
+	"""Everything the callback might be carrying the path in."""
+	found = []
+	try:
+		found.append(info.object())
+	except Exception:
+		pass
+	found.append(info)
+	for reader in ("userInfo", "path", "filePath", "fileURL", "URL"):
+		try:
+			value = getattr(info, reader)
+			value = value() if callable(value) else value
+		except Exception:
+			continue
+		if value is None:
+			continue
+		try:
+			found.extend(list(value.values()))       # a dictionary of them
+			continue
+		except Exception:
+			pass
+		found.append(value)
+	return found
+
+
+def _asPath(candidate):
+	"""A candidate read as a file path, whether it arrived as a string or a URL."""
+	for reader in (None, "path", "fileSystemRepresentation"):
+		value = candidate
+		if reader is not None:
+			try:
+				value = getattr(candidate, reader)
+				value = value() if callable(value) else value
+			except Exception:
+				continue
+		if value is None:
+			continue
+		try:
+			path = value.decode("utf-8") if isinstance(value, bytes) else str(value)
+		except Exception:
+			continue
+		if path.startswith("file://"):
+			path = unquote(path[7:])
+		if path and os.path.isfile(path):
+			return path
+	return None
+
+
 def _exportedFile(info):
 	"""
 	The file Glyphs has just written, out of whatever the callback was handed.
 
 	The notification carries the path as its object, but the shape of these
-	callbacks has changed between versions before, so the dictionary and the
-	bare argument are both worth a look before giving up.
+	callbacks has changed between versions before — a string, a URL, a
+	dictionary with one inside — so each of them is tried, and when none of
+	them is a file that exists it says so rather than doing nothing quietly.
 	"""
-	candidates = []
-	try:
-		candidates.append(info.object())
-	except Exception:
-		pass
-	candidates.append(info)
-	try:
-		userInfo = info.userInfo()
-		if userInfo:
-			candidates.extend(list(userInfo.values()))
-	except Exception:
-		pass
-	for candidate in candidates:
-		try:
-			path = str(candidate)
-		except Exception:
-			continue
-		if path and os.path.isfile(path):
+	for candidate in _candidates(info):
+		path = _asPath(candidate)
+		if path:
 			return path
+	print("Numeratore: the export callback carried no file path — %s"
+		% ", ".join(sorted(set("%s(%r)" % (type(c).__name__, c)[:120]
+			for c in _candidates(info) if c is not None))))
 	return None
 
 
@@ -108,7 +146,8 @@ def _documentExported(info):
 			path = _exportedFile(info)
 			if path:
 				try:
-					_renameWithVersion(path, _batchTag)
+					print("Numeratore: %s → %s" % (os.path.basename(path),
+						os.path.basename(_renameWithVersion(path, _batchTag))))
 				except Exception:
 					import traceback
 					print("Numeratore: could not rename %s\n%s"
