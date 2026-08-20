@@ -298,14 +298,17 @@ class NumeratorePalette(PalettePlugin):
 		self.paletteView = Window((width, height))
 		self.paletteView.group = Group((0, 0, width, height))
 		group = self.paletteView.group
-		labelWidth = width - 16 - switch_width
+		# a width measured from the right edge rather than fixed: the inspector
+		# is wider than the 160 points a palette is built at, and "Add vers. in
+		# filename" needs every one of them rather than an ellipsis
+		labelWidth = -(switch_width + 8)
 
 		# Two switches, two things they do: the first counts the version up
 		# after every export, the second writes that same number into the name
 		# of the file the export just made. Either one is useful without the
 		# other, so neither waits on the other.
 		group.label = TextBox((8, 5, labelWidth, 18), "Increase Vers.", sizeStyle="small")
-		group.nameLabel = TextBox((8, 5 + rowHeight, labelWidth, 18), "Vers. in name", sizeStyle="small")
+		group.nameLabel = TextBox((8, 5 + rowHeight, labelWidth, 18), "Add vers. in filename", sizeStyle="small")
 
 		groupView = group.getNSView()
 		groupView.setAutoresizingMask_(NSViewWidthSizable)
