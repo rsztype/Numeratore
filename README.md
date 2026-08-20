@@ -6,7 +6,7 @@ This is a plugin for the [Glyphs font editor](https://glyphsapp.com/). It automa
 
 After installation, it adds two switches to the palette area on the right (the Inspector). With **Increase Vers.** on, every export increments `versionMinor` in *Font Info > Font*, saves the `.glyphs` file, and shows a notification with the new version. With **Add vers. in filename** on, every file the export just wrote — OTF, TTF, WOFF, WOFF2 — is renamed with that same version on the end — `Nautica.otf` becomes `Nautica-1.023.otf` — using the number the `.glyphs` file carried at the moment of the export, which is the number inside the exported font; the increase, when it is switched on, belongs to the next export. Every instance of a family export is named with the same number, and exporting the same version twice replaces the file instead of piling numbers on the name. Either switch works without the other, and both are remembered between launches.
 
-<img src="Numeratore.png" alt="The Increase Vers. switch in the Inspector palette." title="Numeratore Screenshot" width="400">
+<img src="Numeratore.png" alt="The two Numeratore switches in the Inspector palette, beside the font version they read, and the name of the file an export writes: YourFileName-1.501.otf." title="Numeratore Screenshot" width="500">
 
 > **Previously released as “Version Bumper”.** If you had that version installed, remove it (Plugin Manager, or delete `Version-Bumper.glyphsPalette` from your Plugins folder) so you don't end up with two palettes. The switch starts off again after the rename.
 
