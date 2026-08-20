@@ -4,7 +4,7 @@ By Giuseppe Salerno co-founder of [Resistenza Type](https://rsztype.com).
 
 This is a plugin for the [Glyphs font editor](https://glyphsapp.com/). It automatically increases the font version by `0.001` every time you export, so each exported file carries a unique, incrementing version number without any manual step.
 
-After installation, it adds an **Increase Vers.** switch to the palette area on the right (the Inspector). When the switch is on, every export increments `versionMinor` in *Font Info > Font*, saves the `.glyphs` file, and shows a notification with the new version. When it is off, nothing happens. The switch state is remembered between launches.
+After installation, it adds two switches to the palette area on the right (the Inspector). With **Increase Vers.** on, every export increments `versionMinor` in *Font Info > Font*, saves the `.glyphs` file, and shows a notification with the new version. With **Vers. in name** on, the file the export just wrote is renamed with that same version on the end — `Nautica.otf` becomes `Nautica-v1.023.otf` — using the number the `.glyphs` file carried at the moment of the export, which is the number inside the exported font; the increase, when it is switched on, belongs to the next export. Every instance of a family export is named with the same number, and exporting the same version twice replaces the file instead of piling numbers on the name. Either switch works without the other, and both are remembered between launches.
 
 <img src="Numeratore.png" alt="The Increase Vers. switch in the Inspector palette." title="Numeratore Screenshot" width="400">
 
@@ -19,7 +19,7 @@ After installation, it adds an **Increase Vers.** switch to the palette area on 
 ### Usage Instructions
 
 1. Open a font, and find the *Numeratore* panel in the Inspector on the right.
-2. Flip the **Increase Vers.** switch on.
+2. Flip the **Increase Vers.** switch on, the **Vers. in name** switch, or both.
 3. Export as usual (⌘E). The version is bumped by `0.001` after each export.
 
 The increment lands in the source right after export, ready for the next one, so every exported file gets its own distinct, increasing version.

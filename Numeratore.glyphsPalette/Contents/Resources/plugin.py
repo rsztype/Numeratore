@@ -1,5 +1,8 @@
 # encoding: utf-8
 from __future__ import division, print_function, unicode_literals
+import os
+import re
+
 import objc
 from GlyphsApp import Glyphs, DOCUMENTEXPORTED
 from GlyphsApp.plugins import PalettePlugin
@@ -8,6 +11,7 @@ from Foundation import NSDate, NSMakeRect, NSTimer
 from AppKit import NSViewWidthSizable, NSViewMinXMargin, NSControl, NSBezierPath, NSColor
 
 PREF_KEY = "com.rsztype.Numeratore.enabled"
+NAME_KEY = "com.rsztype.Numeratore.nameVersion"
 
 
 # ----------------------------------------------------------------------
@@ -18,22 +22,103 @@ PREF_KEY = "com.rsztype.Numeratore.enabled"
 # supported integration point across Glyphs versions.
 # ----------------------------------------------------------------------
 _lastBump = 0.0
+_lastExport = 0.0
+_batchTag = None
 _callbackRegistered = False
+
+# One export of a family writes one file per instance and calls back once for
+# each: inside this many seconds they are treated as one export.
+BATCH_WINDOW = 10.0
+
+# How the version is written on the end of a name, and how it is recognised
+# there: "Nautica-v1.023.otf". Matched so that exporting twice writes one
+# number rather than a queue of them.
+NAME_FORMAT = "%s-v%s%s"
+_TAG_AT_END = re.compile(r"[ _-]v?\d+\.\d{3}$")
+
+
+def _versionTag(font):
+	return "%d.%03d" % (font.versionMajor, font.versionMinor)
+
+
+def _exportedFile(info):
+	"""
+	The file Glyphs has just written, out of whatever the callback was handed.
+
+	The notification carries the path as its object, but the shape of these
+	callbacks has changed between versions before, so the dictionary and the
+	bare argument are both worth a look before giving up.
+	"""
+	candidates = []
+	try:
+		candidates.append(info.object())
+	except Exception:
+		pass
+	candidates.append(info)
+	try:
+		userInfo = info.userInfo()
+		if userInfo:
+			candidates.extend(list(userInfo.values()))
+	except Exception:
+		pass
+	for candidate in candidates:
+		try:
+			path = str(candidate)
+		except Exception:
+			continue
+		if path and os.path.isfile(path):
+			return path
+	return None
+
+
+def _renameWithVersion(path, tag):
+	"""
+	Put the version on the end of the file's name: Nautica.otf → Nautica-v1.023.otf.
+
+	The number is the one the .glyphs file is carrying, which is the number
+	inside the font that was just written — the increase, when it is switched
+	on, happens after the export and belongs to the next one. Every instance of
+	a batch is named with the same number, for the same reason.
+	"""
+	folder, name = os.path.split(path)
+	stem, extension = os.path.splitext(name)
+	stem = _TAG_AT_END.sub("", stem)
+	target = os.path.join(folder, NAME_FORMAT % (stem, tag, extension))
+	if os.path.abspath(target) == os.path.abspath(path):
+		return path
+	os.replace(path, target)     # the same version exported twice replaces itself
+	return target
 
 
 def _documentExported(info):
-	global _lastBump
+	global _lastBump, _lastExport, _batchTag
 	try:
-		if not Glyphs.defaults[PREF_KEY]:      # switch OFF -> does nothing
-			return
-		now = NSDate.date().timeIntervalSince1970()
-		if now - _lastBump < 10.0:             # debounce for batch of instances
-			return
-		_lastBump = now
-
 		font = Glyphs.font
 		if font is None:
 			return
+
+		# The first file of a batch opens it: the version is read there, before
+		# any increase, and every file of that batch is named with it.
+		now = NSDate.date().timeIntervalSince1970()
+		if _batchTag is None or now - _lastExport > BATCH_WINDOW:
+			_batchTag = _versionTag(font)
+		_lastExport = now
+
+		if Glyphs.defaults[NAME_KEY]:
+			path = _exportedFile(info)
+			if path:
+				try:
+					_renameWithVersion(path, _batchTag)
+				except Exception:
+					import traceback
+					print("Numeratore: could not rename %s\n%s"
+						% (path, traceback.format_exc()))
+
+		if not Glyphs.defaults[PREF_KEY]:      # switch OFF -> does nothing
+			return
+		if now - _lastBump < BATCH_WINDOW:     # one increase per export, not per file
+			return
+		_lastBump = now
 
 		font.versionMinor += 1
 		if font.versionMinor > 999:            # rollover 1.999 -> 2.000
@@ -129,33 +214,55 @@ class NumeratorePalette(PalettePlugin):
 		self.name = "🔢 Numeratore"
 
 		width = 160
-		height = 30
+		rowHeight = 26
+		height = rowHeight * 2 + 6
 		switch_width = 40
 		self.paletteView = Window((width, height))
 		self.paletteView.group = Group((0, 0, width, height))
-		self.paletteView.group.label = TextBox((8, 7, width - 16 - switch_width, 18), "Increase Vers.", sizeStyle="small")
+		group = self.paletteView.group
+		labelWidth = width - 16 - switch_width
 
-		groupView = self.paletteView.group.getNSView()
+		# Two switches, two things they do: the first counts the version up
+		# after every export, the second writes that same number into the name
+		# of the file the export just made. Either one is useful without the
+		# other, so neither waits on the other.
+		group.label = TextBox((8, 5, labelWidth, 18), "Increase Vers.", sizeStyle="small")
+		group.nameLabel = TextBox((8, 5 + rowHeight, labelWidth, 18), "Vers. in name", sizeStyle="small")
+
+		groupView = group.getNSView()
 		groupView.setAutoresizingMask_(NSViewWidthSizable)
 
-		# custom pill switch, built and attached defensively: if anything
+		# custom pill switches, built and attached defensively: if anything
 		# about raw AppKit interop fails here, the rest of the palette (and
 		# the export hook) should still come up rather than taking Glyphs down.
-		try:
-			sw = _RSZPillSwitch.alloc().initWithFrame_(NSMakeRect(0, 0, switch_width - 8, 14))
-			sw.setOn_(bool(Glyphs.defaults[PREF_KEY]))
-			frame = sw.frame()
-			sw.setFrameOrigin_((width - 8 - frame.size.width, (height - frame.size.height) / 2))
-			sw.setTarget_(self)
-			sw.setAction_("toggle:")
-			sw.setAutoresizingMask_(NSViewMinXMargin)
-			groupView.addSubview_(sw)
-			self.switch = sw
-		except Exception:
-			import traceback
-			print("Numeratore: could not create the switch control: %s" % traceback.format_exc())
+		self.switch = self.addSwitch(groupView, PREF_KEY, "toggle:",
+			width, switch_width, 3)
+		self.nameSwitch = self.addSwitch(groupView, NAME_KEY, "toggleName:",
+			width, switch_width, 3 + rowHeight)
 
 		self.dialog = groupView
+
+	@objc.python_method
+	def addSwitch(self, groupView, key, action, width, switch_width, top):
+		try:
+			control = _RSZPillSwitch.alloc().initWithFrame_(
+				NSMakeRect(0, 0, switch_width - 8, 14))
+			control.setOn_(bool(Glyphs.defaults[key]))
+			frame = control.frame()
+			# these views are not flipped: a row measured from the top of the
+			# palette is subtracted from its height
+			control.setFrameOrigin_((width - 8 - frame.size.width,
+				groupView.frame().size.height - top - frame.size.height - 4))
+			control.setTarget_(self)
+			control.setAction_(action)
+			control.setAutoresizingMask_(NSViewMinXMargin)
+			groupView.addSubview_(control)
+			return control
+		except Exception:
+			import traceback
+			print("Numeratore: could not create the switch control: %s"
+				% traceback.format_exc())
+			return None
 
 	@objc.python_method
 	def start(self):
@@ -163,6 +270,9 @@ class NumeratorePalette(PalettePlugin):
 
 	def toggle_(self, sender):
 		Glyphs.defaults[PREF_KEY] = bool(sender.state())
+
+	def toggleName_(self, sender):
+		Glyphs.defaults[NAME_KEY] = bool(sender.state())
 
 	@objc.python_method
 	def __file__(self):
