@@ -32,9 +32,10 @@ _callbackRegistered = False
 BATCH_WINDOW = 5.0
 
 # How the version is written on the end of a name, and how it is recognised
-# there: "Nautica-v1.023.otf". Matched so that exporting twice writes one
-# number rather than a queue of them.
-NAME_FORMAT = "%s-v%s%s"
+# there: "Nautica-1.023.otf". The pattern also matches the "-v1.023" earlier
+# builds wrote, so a name that carries one is corrected rather than added to,
+# and exporting twice writes one number rather than a queue of them.
+NAME_FORMAT = "%s-%s%s"
 _TAG_AT_END = re.compile(r"[ _-]v?\d+\.\d{3}$")
 
 
@@ -124,28 +125,32 @@ def _asPath(candidate):
 	return None
 
 
-def _exportedFile(info):
+def _exportedFiles(info):
 	"""
-	The file Glyphs has just written, out of whatever the callback was handed.
+	Every file Glyphs has just written, out of whatever the callback was handed.
 
-	The notification carries the path as its object, but the shape of these
-	callbacks has changed between versions before — a string, a URL, a
-	dictionary with one inside — so each of them is tried, and when none of
-	them is a file that exists it says so rather than doing nothing quietly.
+	One export can write more than one file for the same instance — an OTF and
+	a WOFF and a WOFF2 out of the same tick of the same panel — and the
+	notification carries them together, so all of them are collected rather
+	than the first one that answers. Order is kept and duplicates dropped,
+	since the same path arrives twice: once on its own and once inside the
+	list of the batch.
 	"""
+	found = []
 	for candidate in _candidates(info):
 		path = _asPath(candidate)
-		if path:
-			return path
-	print("Numeratore: the export callback carried no file path — %s"
-		% ", ".join(sorted(set("%s(%r)" % (type(c).__name__, c)[:120]
-			for c in _candidates(info) if c is not None))))
-	return None
+		if path and path not in found:
+			found.append(path)
+	if not found:
+		print("Numeratore: the export callback carried no file path — %s"
+			% ", ".join(sorted(set("%s(%r)" % (type(c).__name__, c)[:120]
+				for c in _candidates(info) if c is not None))))
+	return found
 
 
 def _renameWithVersion(path, tag):
 	"""
-	Put the version on the end of the file's name: Nautica.otf → Nautica-v1.023.otf.
+	Put the version on the end of the file's name: Nautica.otf → Nautica-1.023.otf.
 
 	The number is the one the .glyphs file is carrying, which is the number
 	inside the font that was just written — the increase, when it is switched
@@ -177,8 +182,7 @@ def _documentExported(info):
 		_lastExport = now
 
 		if Glyphs.defaults[NAME_KEY]:
-			path = _exportedFile(info)
-			if path:
+			for path in _exportedFiles(info):
 				try:
 					print("Numeratore: %s → %s" % (os.path.basename(path),
 						os.path.basename(_renameWithVersion(path, _batchTag))))
