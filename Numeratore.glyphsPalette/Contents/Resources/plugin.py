@@ -29,7 +29,7 @@ _callbackRegistered = False
 
 # One export of a family writes one file per instance and calls back once for
 # each: inside this many seconds they are treated as one export.
-BATCH_WINDOW = 10.0
+BATCH_WINDOW = 5.0
 
 # How the version is written on the end of a name, and how it is recognised
 # there: "Nautica-v1.023.otf". Matched so that exporting twice writes one
